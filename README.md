@@ -1,6 +1,8 @@
+
+![](../../workflows/gds/badge.svg) ![](../../workflows/docs/badge.svg) ![](../../workflows/test/badge.svg) ![](../../workflows/fpga/badge.svg)
 # Medical Device Battery Monitoring and Safety Controller
 
-## Project Vision: Safety-Critical Power Management
+## Objective : Medical Device Battery Monitoring and Safety Controller 
 This project implements a high-reliability digital Battery Management System (BMS) specifically engineered for **life-critical medical devices** such as pacemakers, insulin pumps, and portable life-support monitors. 
 
 Unlike standard power controllers, this system prioritizes **fail-safe operation** and strict safety compliance. A central design pillar is the **"Sticky Fault Latch"** mechanism: a safety feature that prevents automatic recovery after a critical error. If a hazard like overheating or overcurrent occurs, the system locks into a fault state that must be explicitly cleared by a human operator, ensuring the device is inspected before resuming patient care.
@@ -69,3 +71,4 @@ The controller has been rigorously validated through both Verilog and Python (Co
 *   **Sticky Latch Testing:** Confirming that thermal and current faults cannot be cleared without a manual reset.
 *   **Escalation Logic:** Verifying the watchdog timer successfully triggers a shutdown during persistent failures.
 *   **Telemetry Accuracy:** Validating State-of-Charge reporting across all 16 voltage levels.
+
