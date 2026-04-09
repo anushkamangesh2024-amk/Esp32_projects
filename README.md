@@ -1,75 +1,71 @@
 # Medical Device Battery Monitoring and Safety Controller
 
-## Executive Summary
-This project implements a high-reliability digital Battery Management System (BMS) specifically engineered for **safety-critical medical devices**, including pacemakers, insulin pumps, and portable monitoring systems [1, 2]. Unlike consumer-grade battery controllers, this system prioritizes **fail-safe operation** and **strict safety compliance** over performance, ensuring that power failure or instability does not compromise patient care [2].
+## Project Vision: Safety-Critical Power Management
+This project implements a high-reliability digital Battery Management System (BMS) specifically engineered for **life-critical medical devices** such as pacemakers, insulin pumps, and portable life-support monitors. 
 
-A cornerstone of this design is the **"Sticky Fault Latch"** mechanism. This ensures that any critical issue identified by the system—such as overheating or overcurrent—requires explicit human intervention to clear, preventing the dangers associated with automatic recovery in clinical settings [1, 3].
+Unlike standard power controllers, this system prioritizes **fail-safe operation** and strict safety compliance. A central design pillar is the **"Sticky Fault Latch"** mechanism: a safety feature that prevents automatic recovery after a critical error. If a hazard like overheating or overcurrent occurs, the system locks into a fault state that must be explicitly cleared by a human operator, ensuring the device is inspected before resuming patient care.
 
-## Technical Applications & Compliance
-The controller is optimized for low-power medical equipment that demands:
-*   **High Reliability:** Deterministic digital logic for predictable behavior [2, 4].
-*   **Fail-Safe Architecture:** Immediate transition to safe states upon detection of hazards [2, 3].
-*   **Regulatory Alignment:** Conceptually aligned with **IEC 60601-1 safety standards**, focusing on controlled fault handling and the prevention of unsafe automatic restarts [2].
+## Core Features
+*   **Deterministic Logic:** Built as a pure hardware controller to ensure predictable behavior under all fault conditions.
+*   **Safety Compliance:** The architecture aligns with **IEC 60601-1** standards, focusing on controlled fault handling and the prevention of unsafe automatic restarts.
+*   **Intelligent Monitoring:** Real-time analysis of voltage, current, and thermal telemetry across 15 distinct safety scenarios.
+*   **Resilient Design:** Integrated hysteresis-based recovery to filter signal noise and a watchdog timer to prevent unattended system failures.
 
 ---
 
-## System Architecture
-The system operates as a purely digital control unit. It processes a variety of sensor inputs to generate real-time safety control outputs [2]. 
+## Hardware Interface
+The controller is designed for the Tiny Tapeout platform (Module: `tt_um_AnjaniKad_medical_bms`), utilizing a 10MHz clock to process 8-bit digital inputs and drive 8-bit safety status outputs.
 
-### Hardware Interface (Input/Output Mapping)
-To meet the constraints of specialized ASIC platforms like Tiny Tapeout, the design fully utilizes an 8-bit input/output configuration [2, 4].
-
-#### System Inputs (8 Bits)
-| Signal | Bits | Description |
+### System Inputs (8-Bit Bus)
+| Signal | Bit(s) | Function |
 | :--- | :---: | :--- |
-| **Voltage** | 4 | Digitized battery voltage (mapped 0–15) [2]. |
-| **Current** | 2 | Monitors load current levels [2]. |
-| **Temp Flag** | 1 | External indicator for over-temperature conditions [2]. |
-| **Safe Reset** | 1 | Manual signal required to clear latched faults [2]. |
+| **Voltage** | 0-3 | 4-bit digitized battery voltage (0–15 scale) |
+| **Current** | 4-5 | 2-bit load current level monitoring |
+| **Temp Flag** | 6 | External sensor input for over-temperature detection |
+| **Safe Reset** | 7 | Manual human-triggered signal to clear latched faults |
 
-#### System Outputs (8 Bits)
-| Signal | Bits | Description |
+### System Outputs (8-Bit Bus)
+| Signal | Bit(s) | Function |
 | :--- | :---: | :--- |
-| **General Fault** | 1 | Indicates the system is in an unsafe state [3]. |
-| **Shutdown** | 1 | Triggers an immediate hardware-level system disable [3]. |
-| **Thermal Alarm** | 1 | A dedicated "sticky" flag for thermal events [3]. |
-| **FSM State** | 2 | Real-time reporting of the current system safety state [3]. |
-| **SOC** | 2 | Battery State-of-Charge level (Critical to Full) [3]. |
-| **Overcurrent** | 1 | Instantaneous indicator of critical current levels [3]. |
+| **General Fault** | 0 | Master indicator that the system is in an unsafe state |
+| **Shutdown** | 1 | Hardware-level trigger to disable the medical device |
+| **Thermal Alarm**| 2 | "Sticky" flag indicating a past or current thermal violation |
+| **FSM State** | 3-4 | Real-time reporting of the current Safety State |
+| **SOC** | 5-6 | 2-bit Battery State-of-Charge (Critical to Full) |
+| **Overcurrent** | 7 | Dedicated indicator for critical current breaches |
 
 ---
 
-## Core Functional Blocks
-The controller is comprised of seven specialized logic blocks designed to work in parallel [3].
+## Internal Architecture & Functional Blocks
+The system is partitioned into seven specialized logic modules that operate in parallel for maximum reliability:
 
-1.  **Voltage Comparator:** Categorizes battery voltage into five regions (Critical Low to Critical High) to detect deep discharge or overcharging risks [3].
-2.  **SOC Estimator:** Translates voltage levels into four simplified battery states: **Critical, Low, Medium, or Full** [3].
-3.  **Current Monitor:** Interprets current levels as Normal, High (Warning), or Critical (Fault). Critical current triggers a fault state immediately [3].
-4.  **Thermal Guard (Sticky Latch):** Monitors overheating. Once activated, it remains active even after temperatures normalize, requiring a **Manual Reset** to ensure the device is inspected [3].
-5.  **Hysteresis Counter:** Prevents "state chatter" from noisy signals by requiring **8 consecutive safe cycles** before allowing a transition from Warning back to Idle [3].
-6.  **Watchdog Timer:** Escalates safety if a fault persists for **16 cycles**, moving the system into a full Shutdown to prevent unattended failures [3].
-7.  **Safety Finite State Machine (FSM):** The central logic core managing the four operational states: **IDLE, WARN, FAULT, and SHUTDOWN** [3].
-
----
-
-## The Safety-First Logic Model
-The FSM is governed by a strict hierarchy where critical safety events bypass warnings for immediate action [3].
-
-*   **Non-Automatic Recovery:** Critical faults are "sticky" (latched). Recovery is only possible through a combination of a manual human reset and safe environmental conditions [3].
-*   **Smart Fault Handling:** The system synthesizes voltage, current, and thermal data simultaneously, prioritizing patient safety over device performance [4].
-*   **Fail-Safe Defaults:** If the system reaches the **SHUTDOWN** state, the medical device is disabled to prevent catastrophic failure or fire [3].
+1.  **Voltage & SOC Engine:** Categorizes battery voltage into five safety regions and provides 4-level State-of-Charge telemetry.
+2.  **Current Monitor:** Provides microsecond-response detection for current surges, bypassing warnings to trigger immediate fault states if thresholds are breached.
+3.  **Thermal Guard:** A specialized safety latch that captures overheating events. It remains active even if the temperature returns to normal until a manual reset is provided.
+4.  **Hysteresis Counter:** A safety-debounce block that requires **8 consecutive safe clock cycles** before allowing the system to transition from a Warning state back to Idle.
+5.  **Watchdog Timer:** Monitors fault duration; if a critical error persists for **16 cycles**, the system automatically escalates to a full hardware **SHUTDOWN**.
+6.  **Safety Finite State Machine (FSM):** The central logic core managing transitions between **IDLE, WARN, FAULT, and SHUTDOWN** states based on a prioritized safety matrix.
 
 ---
 
-## Hardware Efficiency Metrics
-Despite its robust feature set, the design is highly optimized for ASIC manufacturing with a very low gate count [4].
+## Resource Utilization & Gate Count
+The design is highly optimized for ASIC manufacturing, maximizing safety logic while maintaining a compact hardware footprint. 
 
-| Block | Estimated Gate Count |
+| Functional Block | Estimated Gate Count |
 | :--- | :--- |
-| **Voltage & SOC Logic** | ~30 Gates |
-| **Safety FSM** | ~80 Gates |
-| **Watchdog & Hysteresis** | ~70 Gates |
-| **Miscellaneous & Interface** | ~120-220 Gates |
-| **Total Complexity** | **~300–400 Gates** |
+| **Voltage & SOC Logic** | ~35 Gates |
+| **Safety FSM** | ~95 Gates |
+| **Watchdog Timer (4-bit)** | ~55 Gates |
+| **Hysteresis Counter (3-bit)** | ~45 Gates |
+| **Thermal & Current Logic** | ~30 Gates |
+| **Interface & Glue Logic** | ~90 Gates |
+| **Total Complexity** | **~350–450 Gates** |
 
-This efficiency ensures the controller can be integrated into the smallest medical implants and portable monitors while maintaining the highest tiers of digital reliability [4, 5].
+---
+
+## Verification & Testing
+The controller has been rigorously validated through both Verilog and Python (Cocotb) testbenches. The verification suite covers 15 critical scenarios, including:
+*   **Recovery Validation:** Ensuring the 8-cycle hysteresis prevents "state chatter" from noisy sensors.
+*   **Sticky Latch Testing:** Confirming that thermal and current faults cannot be cleared without a manual reset.
+*   **Escalation Logic:** Verifying the watchdog timer successfully triggers a shutdown during persistent failures.
+*   **Telemetry Accuracy:** Validating State-of-Charge reporting across all 16 voltage levels.
